@@ -1,5 +1,4 @@
-package com.example.outages.config;
-
+import com.example.outages.config.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,10 +6,19 @@ import org.springframework.http.client.reactive.ClientHttpConnector;
 import org.springframework.http.client.reactive.HttpComponentsClientHttpConnector;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
+import org.springframework.http.client.reactive.JdkClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
+import java.net.http.HttpClient;
 
 @Configuration
-@EnableConfigurationProperties({SchedulerProperties.class, TargetProperties.class, SampleProperties.class, RetryProperties.class, OutputProperties.class, SendProperties.class})
+@EnableConfigurationProperties({
+        SchedulerProperties.class,
+        TargetProperties.class,
+        SampleProperties.class,
+        RetryProperties.class,
+        OutputProperties.class,
+        SendProperties.class
+})
 public class AppConfig {
 
     @Bean
@@ -23,19 +31,7 @@ public class AppConfig {
 
     @Bean
     public ClientHttpConnector httpConnector() {
-        ClientHttpConnector connector = tryBuildJdkConnector();
-        return connector != null ? connector : new HttpComponentsClientHttpConnector();
-    }
-
-    private ClientHttpConnector tryBuildJdkConnector() {
-        try {
-            Class<?> type = Class.forName("org.springframework.http.client.reactive.JdkClientHttpConnector");
-            return (ClientHttpConnector) type.getDeclaredConstructor().newInstance();
-        } catch (ClassNotFoundException ex) {
-            return null;
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalStateException("Failed to instantiate JDK ClientHttpConnector", ex);
-        }
+        return new HttpComponentsClientHttpConnector();
     }
 
     @Bean
@@ -43,8 +39,10 @@ public class AppConfig {
         ExchangeStrategies strategies = ExchangeStrategies.builder()
                 .codecs(c -> c.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();
+
+        // ✅ lightweight JDK 11 HTTP client
         return WebClient.builder()
-                .clientConnector(connector)
+                .clientConnector(new JdkClientHttpConnector(HttpClient.newBuilder().build()))
                 .exchangeStrategies(strategies)
                 .build();
     }
