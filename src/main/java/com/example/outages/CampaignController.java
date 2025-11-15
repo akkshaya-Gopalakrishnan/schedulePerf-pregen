@@ -1,5 +1,6 @@
 package com.example.outages;
 
+import com.example.outages.config.OutputProperties;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,9 +12,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class CampaignController {
 
     private final CampaignService service;
+    private final OutputProperties outputProps;
 
-    public CampaignController(CampaignService service) {
+    public CampaignController(CampaignService service, OutputProperties outputProps) {
         this.service = service;
+        this.outputProps = outputProps;
     }
 
     @PostMapping("/start")
