@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: map-outage-scheduler
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+# --- Your knobs ---
+scheduler:
+  interval: 10m           # send cadence
+  duration: 4h            # total test window
+  maxOutagesTotal: 500
+  maxReachPctByMaxHour: 0.6
+  avgNodesPerFile: 120
+  ramp:
+    shape: sigmoid        # linear|exp|sigmoid
+    a: 10
+    k: 2.5
+
+# Sample file on the same server (relative or absolute path)
+sample:
+  path: sample/sample.json
+
+# Folder to PRE-GENERATE all payload files, and from which sender will pick
+output:
+  dir: /Users/Agopalakrishnan/Downloads/PerfTest/Samples
+
+target:
+  endpoint: https://YOUR_DATAFEED_URL
+  auth:
+    type: bearer          # bearer|header|none
+    token: YOUR_TOKEN
+
+retry:
+  maxAttempts: 5
+  backoffSeconds: 1
