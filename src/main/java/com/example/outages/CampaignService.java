@@ -32,9 +32,14 @@ public class CampaignService {
     private final RetryProperties retryProps;
     private final SendProperties sendProps;
 
-    public CampaignService(TaskScheduler scheduler, WebClient webClient, SchedulerProperties schedulerProps,
-                           TargetProperties targetProps, SampleProperties sampleProps, OutputProperties outputProps,
-                           RetryProperties retryProps, SendProperties sendProps) {
+    public CampaignService(TaskScheduler scheduler,
+                           WebClient webClient,
+                           SchedulerProperties schedulerProps,
+                           TargetProperties targetProps,
+                           SampleProperties sampleProps,
+                           OutputProperties outputProps,
+                           RetryProperties retryProps,
+                           SendProperties sendProps) {
         this.scheduler = scheduler;
         this.webClient = webClient;
         this.schedulerProps = schedulerProps;
@@ -45,7 +50,7 @@ public class CampaignService {
         this.sendProps = sendProps;
     }
 
-    // Java 11-friendly class for campaign status
+    /** Java 11-friendly status DTO (no records). */
     public static class Status {
         private final boolean running;
         private final int sentCount;
@@ -79,28 +84,38 @@ public class CampaignService {
     private int totalPlanned;
     private List<Path> pregenFiles;
 
+    /** Start a campaign: always pre-generate; schedule sending only if send.enabled=true. */
     public synchronized Status start() {
         if (running) return status();
-        if (!sendProps.isEnabled()) {
-            log.info("send.enabled=false → start request ignored. Update application.yml to enable sending.");
-            return status();
-        }
-        Objects.requireNonNull(targetProps.getEndpoint(), "target.endpoint is required");
+
         Objects.requireNonNull(sampleProps.getPath(), "sample.path is required");
         Objects.requireNonNull(outputProps.getDir(), "output.dir is required");
 
+        boolean sending = sendProps.isEnabled(); // assumes boolean + isEnabled()
+        if (sending) {
+            Objects.requireNonNull(targetProps.getEndpoint(),
+                    "target.endpoint is required when send.enabled=true");
+        }
+
         Duration duration = parseDuration(schedulerProps.getDuration());
-        Duration period = parseDuration(schedulerProps.getInterval());
+        Duration period   = parseDuration(schedulerProps.getInterval());
         totalPlanned = computeTotalPlanned(duration, period);
         sent.set(0);
         startedAt = Instant.now();
-        endsAt = startedAt.plus(duration);
+        endsAt    = startedAt.plus(duration);
 
         pregenFiles = preGenerateAll(totalPlanned, period);
-        running = true;
+        log.info("Pre-generated {} files into {}", totalPlanned, outputProps.getDir());
 
-        future = scheduler.scheduleAtFixedRate(new Sender(), period);
-        log.info("Scheduling sender every {}", period);
+        if (sending) {
+            future = scheduler.scheduleAtFixedRate(new Sender(), period);
+            running = true;
+            log.info("Sending enabled: scheduling sender every {}", period);
+        } else {
+            running = false; // generation-only mode
+            log.info("Sending disabled: generation complete, no HTTP posts will be made.");
+        }
+
         return status();
     }
 
@@ -111,7 +126,29 @@ public class CampaignService {
     }
 
     public Status status() {
-        return new Status(running, sent.get(), totalPlanned, targetProps.getEndpoint(), startedAt, endsAt);
+        return new Status(running, sent.get(), totalPlanned,
+                targetProps.getEndpoint(), startedAt, endsAt);
+    }
+
+    /** One-shot: generate all files immediately, no scheduling, no sending. */
+    public synchronized int generateAllNow() {
+        Objects.requireNonNull(sampleProps.getPath(), "sample.path is required");
+        Objects.requireNonNull(outputProps.getDir(), "output.dir is required");
+
+        Duration duration = parseDuration(schedulerProps.getDuration());
+        Duration period   = parseDuration(schedulerProps.getInterval());
+        int planned = computeTotalPlanned(duration, period);
+
+        pregenFiles = preGenerateAll(planned, period);
+        totalPlanned = planned;
+        sent.set(0);
+        running = false;
+        if (future != null) {
+            future.cancel(false);
+            future = null;
+        }
+        log.info("Pre-generated {} campaign payloads into {}", planned, outputProps.getDir());
+        return planned;
     }
 
     public synchronized int generateAllNow() {
@@ -139,6 +176,7 @@ public class CampaignService {
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             Path samplePath = Paths.get(sampleProps.getPath());
             String json = Files.readString(samplePath);
+            @SuppressWarnings("unchecked")
             Map<String,Object> sample = mapper.readValue(json, Map.class);
 
             Path outDir = Paths.get(outputProps.getDir());
@@ -147,8 +185,10 @@ public class CampaignService {
             return IntStream.rangeClosed(1, N)
                     .mapToObj(t -> {
                         try {
-                            OffsetDateTime scheduledLocal = OffsetDateTime.now(PHOENIX).plusSeconds(period.getSeconds() * (t-1));
-                            String outageId = "outage-" + scheduledLocal.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ssXXX"));
+                            OffsetDateTime scheduledLocal =
+                                    OffsetDateTime.now(PHOENIX).plusSeconds(period.getSeconds() * (long)(t - 1));
+                            String outageId = "outage-" + scheduledLocal.format(
+                                    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ssXXX"));
                             Map<String,Object> payload = generateFromSample(sample, t, N, outageId);
                             Path file = outDir.resolve(String.format("%03d-%s.json", t, outageId));
                             Files.writeString(file, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(payload));
@@ -176,7 +216,7 @@ public class CampaignService {
         double targetReach = reachCap * r;
 
         int maxOutagesTotal = schedulerProps.getMaxOutagesTotal();
-        int outagesThisFile = Math.max(1, (int)Math.round(maxOutagesTotal * (1.0/N)));
+        int outagesThisFile = Math.max(1, (int)Math.round(maxOutagesTotal * (1.0 / N)));
         int avgNodes = Math.max(1, schedulerProps.getAvgNodesPerFile());
         int nodesThisFile = Math.max(1, (int)Math.round(avgNodes * (0.5 + r)));
 
@@ -185,11 +225,11 @@ public class CampaignService {
         outage.put("scheduledFor", OffsetDateTime.now(PHOENIX).toString());
         root.put("outage", outage);
 
-        Map<String,Object> nodeTemplate = nodes.isEmpty()? new HashMap<>() : nodes.get(0);
+        Map<String,Object> nodeTemplate = nodes.isEmpty() ? new HashMap<>() : nodes.get(0);
         List<Map<String,Object>> newNodes = new ArrayList<>();
-        for (int i=1;i<=nodesThisFile;i++) {
+        for (int i = 1; i <= nodesThisFile; i++) {
             Map<String,Object> n = mapper.readValue(mapper.writeValueAsBytes(nodeTemplate), Map.class);
-            n.put("dnId", String.format("dn-%05d", i));   // <── using dnId here
+            n.put("dnId", String.format("dn-%05d", i));
             int customers = Math.max(1, (int)Math.round(100 * (0.3 + r)));
             n.put("customersAffected", customers);
             newNodes.add(n);
@@ -226,29 +266,34 @@ public class CampaignService {
     private void postPayload(String payloadJson) {
         WebClient.RequestBodySpec req = webClient.post().uri(targetProps.getEndpoint())
                 .header("Content-Type", "application/json");
-        String type = Optional.ofNullable(targetProps.getAuth()).map(TargetProperties.Auth::getType).orElse("none");
-        if ("bearer".equalsIgnoreCase(type) && targetProps.getAuth().getToken()!=null) {
+
+        String type = Optional.ofNullable(targetProps.getAuth())
+                .map(TargetProperties.Auth::getType).orElse("none");
+
+        if ("bearer".equalsIgnoreCase(type) && targetProps.getAuth().getToken() != null) {
             req = req.header("Authorization", "Bearer " + targetProps.getAuth().getToken());
-        } else if ("header".equalsIgnoreCase(type) && targetProps.getAuth().getHeaderName()!=null) {
+        } else if ("header".equalsIgnoreCase(type) && targetProps.getAuth().getHeaderName() != null) {
             req = req.header(targetProps.getAuth().getHeaderName(), targetProps.getAuth().getHeaderValue());
         }
+
         req.bodyValue(payloadJson)
                 .retrieve()
                 .toBodilessEntity()
-                .retryWhen(Retry.backoff(retryProps.getMaxAttempts(), Duration.ofSeconds(retryProps.getBackoffSeconds()))
+                .retryWhen(Retry.backoff(retryProps.getMaxAttempts(),
+                        Duration.ofSeconds(retryProps.getBackoffSeconds()))
                         .maxBackoff(Duration.ofSeconds(30)))
                 .block();
     }
 
     private static double ramp(int t, int N, String shape, double a, double k) {
-        double x = Math.max(0, Math.min(1, (double)t / (double)N));
+        double x = Math.max(0, Math.min(1, (double) t / (double) N));
         switch (shape.toLowerCase()) {
             case "linear": return x;
             case "exp":
                 double ek = Math.expm1(k);
                 return Math.expm1(k * x) / (ek == 0 ? 1 : ek);
-            default:
-                double s = 1.0 / (1.0 + Math.exp(-a * (x - 0.5)));
+            default: // sigmoid
+                double s  = 1.0 / (1.0 + Math.exp(-a * (x - 0.5)));
                 double s0 = 1.0 / (1.0 + Math.exp(-a * (0 - 0.5)));
                 double s1 = 1.0 / (1.0 + Math.exp(-a * (1 - 0.5)));
                 return (s - s0) / (s1 - s0);
@@ -257,11 +302,11 @@ public class CampaignService {
 
     private static Duration parseDuration(String s) {
         s = s.trim().toLowerCase();
-        if (s.endsWith("ms")) return Duration.ofMillis(Long.parseLong(s.substring(0, s.length()-2)));
-        if (s.endsWith("s")) return Duration.ofSeconds(Long.parseLong(s.substring(0, s.length()-1)));
-        if (s.endsWith("m")) return Duration.ofMinutes(Long.parseLong(s.substring(0, s.length()-1)));
-        if (s.endsWith("h")) return Duration.ofHours(Long.parseLong(s.substring(0, s.length()-1)));
-        if (s.endsWith("d")) return Duration.ofDays(Long.parseLong(s.substring(0, s.length()-1)));
+        if (s.endsWith("ms")) return Duration.ofMillis(Long.parseLong(s.substring(0, s.length() - 2)));
+        if (s.endsWith("s"))  return Duration.ofSeconds(Long.parseLong(s.substring(0, s.length() - 1)));
+        if (s.endsWith("m"))  return Duration.ofMinutes(Long.parseLong(s.substring(0, s.length() - 1)));
+        if (s.endsWith("h"))  return Duration.ofHours(Long.parseLong(s.substring(0, s.length() - 1)));
+        if (s.endsWith("d"))  return Duration.ofDays(Long.parseLong(s.substring(0, s.length() - 1)));
         return Duration.parse(s);
     }
 

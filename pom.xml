@@ -15,6 +15,7 @@
     <spring-boot.version>2.7.18</spring-boot.version>
   </properties>
 
+  <!-- Use the Spring Boot BOM to manage versions -->
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -28,27 +29,37 @@
   </dependencyManagement>
 
   <dependencies>
+    <!-- MVC (servlet) for your controllers; deploys on Tomcat -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
+
+    <!-- Actuator (optional) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
+
+    <!-- Bean validation (optional) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
+
+    <!-- Provided Tomcat when packaging as WAR -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-tomcat</artifactId>
       <scope>provided</scope>
     </dependency>
+
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-webflux</artifactId>
     </dependency>
+
+    <!-- JSON (pulled by web starter already, but keeping explicit is fine) -->
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpasyncclient</artifactId>
@@ -57,19 +68,15 @@
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
+
+    <!-- Lombok (optional, only if you use it) -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <optional>true</optional>
     </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-    </dependency>
+
+    <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
@@ -86,6 +93,7 @@
           <layout>WAR</layout>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -97,6 +105,7 @@
           </compilerArgs>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
@@ -104,9 +113,7 @@
         <executions>
           <execution>
             <id>enforce-java11</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
+            <goals><goal>enforce</goal></goals>
             <configuration>
               <rules>
                 <requireJavaVersion>
@@ -121,6 +128,7 @@
         </executions>
       </plugin>
     </plugins>
+
     <finalName>schedulePerf</finalName>
   </build>
 </project>
