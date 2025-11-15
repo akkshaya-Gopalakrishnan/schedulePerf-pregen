@@ -30,10 +30,11 @@ public class CampaignService {
     private final SampleProperties sampleProps;
     private final OutputProperties outputProps;
     private final RetryProperties retryProps;
+    private final SendProperties sendProps;
 
     public CampaignService(TaskScheduler scheduler, WebClient webClient, SchedulerProperties schedulerProps,
                            TargetProperties targetProps, SampleProperties sampleProps, OutputProperties outputProps,
-                           RetryProperties retryProps) {
+                           RetryProperties retryProps, SendProperties sendProps) {
         this.scheduler = scheduler;
         this.webClient = webClient;
         this.schedulerProps = schedulerProps;
@@ -41,6 +42,7 @@ public class CampaignService {
         this.sampleProps = sampleProps;
         this.outputProps = outputProps;
         this.retryProps = retryProps;
+        this.sendProps = sendProps;
     }
 
     // Java 11-friendly class for campaign status
@@ -79,13 +81,17 @@ public class CampaignService {
 
     public synchronized Status start() {
         if (running) return status();
+        if (!sendProps.isEnabled()) {
+            log.info("send.enabled=false → start request ignored. Update application.yml to enable sending.");
+            return status();
+        }
         Objects.requireNonNull(targetProps.getEndpoint(), "target.endpoint is required");
         Objects.requireNonNull(sampleProps.getPath(), "sample.path is required");
         Objects.requireNonNull(outputProps.getDir(), "output.dir is required");
 
         Duration duration = parseDuration(schedulerProps.getDuration());
         Duration period = parseDuration(schedulerProps.getInterval());
-        totalPlanned = (int)Math.ceil((double)duration.toMinutes()/period.toMinutes());
+        totalPlanned = computeTotalPlanned(duration, period);
         sent.set(0);
         startedAt = Instant.now();
         endsAt = startedAt.plus(duration);
@@ -93,13 +99,8 @@ public class CampaignService {
         pregenFiles = preGenerateAll(totalPlanned, period);
         running = true;
 
-        if (Boolean.TRUE.equals(sendProps.isEnabled())) {
-            running = true;
-            future = scheduler.scheduleAtFixedRate(new Sender(), period);
-            log.info("Scheduling sender every {}", period);
-        } else {
-            log.info("[DRY RUN] send.enabled=false → skipping scheduled uploads");
-        }
+        future = scheduler.scheduleAtFixedRate(new Sender(), period);
+        log.info("Scheduling sender every {}", period);
         return status();
     }
 
@@ -111,6 +112,26 @@ public class CampaignService {
 
     public Status status() {
         return new Status(running, sent.get(), totalPlanned, targetProps.getEndpoint(), startedAt, endsAt);
+    }
+
+    public synchronized int generateAllNow() {
+        Objects.requireNonNull(sampleProps.getPath(), "sample.path is required");
+        Objects.requireNonNull(outputProps.getDir(), "output.dir is required");
+
+        Duration duration = parseDuration(schedulerProps.getDuration());
+        Duration period = parseDuration(schedulerProps.getInterval());
+        int planned = computeTotalPlanned(duration, period);
+
+        pregenFiles = preGenerateAll(planned, period);
+        totalPlanned = planned;
+        sent.set(0);
+        running = false;
+        if (future != null) {
+            future.cancel(false);
+            future = null;
+        }
+        log.info("Pre-generated {} campaign payloads into {}", planned, outputProps.getDir());
+        return planned;
     }
 
     private List<Path> preGenerateAll(int N, Duration period) {
@@ -242,5 +263,14 @@ public class CampaignService {
         if (s.endsWith("h")) return Duration.ofHours(Long.parseLong(s.substring(0, s.length()-1)));
         if (s.endsWith("d")) return Duration.ofDays(Long.parseLong(s.substring(0, s.length()-1)));
         return Duration.parse(s);
+    }
+
+    private static int computeTotalPlanned(Duration duration, Duration period) {
+        if (period.isZero() || period.isNegative()) {
+            throw new IllegalArgumentException("scheduler.interval must be greater than zero");
+        }
+        double ratio = (double) duration.toNanos() / (double) period.toNanos();
+        double bounded = Math.max(1.0d, ratio);
+        return (int) Math.ceil(bounded);
     }
 }
