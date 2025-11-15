@@ -2,6 +2,8 @@ import com.example.outages.config.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.reactive.ClientHttpConnector;
+import org.springframework.http.client.reactive.HttpComponentsClientHttpConnector;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.http.client.reactive.JdkClientHttpConnector;
@@ -28,7 +30,12 @@ public class AppConfig {
     }
 
     @Bean
-    public WebClient webClient() {
+    public ClientHttpConnector httpConnector() {
+        return new HttpComponentsClientHttpConnector();
+    }
+
+    @Bean
+    public WebClient webClient(ClientHttpConnector connector) {
         ExchangeStrategies strategies = ExchangeStrategies.builder()
                 .codecs(c -> c.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
                 .build();

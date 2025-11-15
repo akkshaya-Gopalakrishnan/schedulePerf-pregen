@@ -61,6 +61,10 @@
 
     <!-- JSON (pulled by web starter already, but keeping explicit is fine) -->
     <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpasyncclient</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
@@ -78,10 +82,6 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <!-- ❌ REMOVE: reactor-netty-http (not needed with JDK client) -->
-    <!-- ❌ REMOVE: spring-boot-starter-webflux (not needed; we use the module above) -->
-    <!-- ❌ REMOVE: explicit slf4j/logback — Boot starters already bring logging -->
   </dependencies>
 
   <build>
