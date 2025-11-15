@@ -27,9 +27,13 @@ target:
   auth: { type: bearer, token: YOUR_TOKEN }
 
 retry: { maxAttempts: 5, backoffSeconds: 1 }
+
+send:
+  enabled: true   # flip to false for a dry run that only pre-generates files
 ```
 
 ## Deploy
+- Build + run requires **Java 11**. The Maven Enforcer plugin now checks the JDK version during the build and ensures all bytecode targets Java 11 so the WAR stays compatible with your runtime.
 - Build the WAR: `mvn -q -DskipTests package`
 - Copy to Tomcat: `/var/lib/tomcat/webapps/ROOT.war`
 - External config: add to Tomcat `JAVA_OPTS`: `-Dspring.config.additional-location=file:/etc/map-outage-scheduler/application.yml`
