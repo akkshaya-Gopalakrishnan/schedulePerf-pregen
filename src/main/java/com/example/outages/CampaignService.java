@@ -83,6 +83,9 @@ public class CampaignService {
     private final AtomicInteger sent = new AtomicInteger();
     private int totalPlanned;
     private List<Path> pregenFiles;
+    private volatile List<String> dnPool;
+    private final Object dnLock = new Object();
+    private int dnCursor = 0;
 
     /** Start a campaign: always pre-generate; schedule sending only if send.enabled=true. */
     public synchronized Status start() {
@@ -90,6 +93,7 @@ public class CampaignService {
 
         Objects.requireNonNull(sampleProps.getPath(), "sample.path is required");
         Objects.requireNonNull(outputProps.getDir(), "output.dir is required");
+        Objects.requireNonNull(sampleProps.getDeliveryNodeListPath(), "sample.deliveryNodeListPath is required");
 
         boolean sending = sendProps.isEnabled(); // assumes boolean + isEnabled()
         if (sending) {
@@ -133,6 +137,7 @@ public class CampaignService {
     public synchronized int generateAllNow() {
         Objects.requireNonNull(sampleProps.getPath(), "sample.path is required");
         Objects.requireNonNull(outputProps.getDir(), "output.dir is required");
+        Objects.requireNonNull(sampleProps.getDeliveryNodeListPath(), "sample.deliveryNodeListPath is required");
 
         Duration duration = parseDuration(schedulerProps.getDuration());
         Duration period   = parseDuration(schedulerProps.getInterval());
@@ -183,76 +188,101 @@ public class CampaignService {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> generateFromSample(Map<String, Object> sample, int t, int N, String baseId) throws Exception {
+    private Map<String, Object> generateFromSample(Map<String, Object> sample, int t, int N, String outageIdPrefix) throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-
-        // Deep copy the whole sample to preserve structure
         Map<String, Object> root = mapper.readValue(mapper.writeValueAsBytes(sample), Map.class);
 
-        // Expect "outages" array in the sample
-        List<Map<String, Object>> sampleOutages = (List<Map<String, Object>>) root.get("outages");
-        if (sampleOutages == null || sampleOutages.isEmpty()) {
-            throw new IllegalStateException("Sample must contain 'outages' array with at least one element.");
+        List<Map<String, Object>> outages = (List<Map<String, Object>>) root.get("outages");
+        if (outages == null) {
+            outages = new ArrayList<>();
+            root.put("outages", outages);
+        } else {
+            outages.clear();
         }
 
-        // Template for a single outage
-        Map<String, Object> outageTemplate = sampleOutages.get(0);
-        List<Map<String, Object>> affectedTemplate =
-                (List<Map<String, Object>>) outageTemplate.getOrDefault("affectedDeliveryNodes", new ArrayList<>());
-
-        // Ramp and control
         double r = ramp(t, N,
                 schedulerProps.getRamp().getShape(),
                 schedulerProps.getRamp().getA(),
                 schedulerProps.getRamp().getK());
-
         int maxOutagesTotal = schedulerProps.getMaxOutagesTotal();
         int outagesThisFile = Math.max(1, (int) Math.round(maxOutagesTotal * (1.0 / N)));
-
         int avgNodes = Math.max(1, schedulerProps.getAvgNodesPerFile());
         int nodesThisFile = Math.max(1, (int) Math.round(avgNodes * (0.5 + r)));
 
-        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
+        for (int i = 0; i < outagesThisFile; i++) {
+            String outageId = outageIdPrefix + "-" + String.format("%03d", i + 1);
 
-        // Build outages array
-        List<Map<String, Object>> newOutages = new ArrayList<>();
-        for (int j = 1; j <= outagesThisFile; j++) {
-            // Deep copy outage template
-            Map<String, Object> outage = mapper.readValue(mapper.writeValueAsBytes(outageTemplate), Map.class);
+            Map<String, Object> outageObj = new HashMap<>();
+            outageObj.put("id", outageId);
+            outageObj.putIfAbsent("startedAt", OffsetDateTime.now(ZoneOffset.UTC).toString());
+            outageObj.putIfAbsent("updatedAt", OffsetDateTime.now(ZoneOffset.UTC).toString());
 
-            // Unique outage ID
-            String outageId = baseId + "-" + String.format("%02d", j);
-            outage.put("id", outageId);
+            List<String> dnIds = takeDnIds(nodesThisFile);
+            List<Map<String, Object>> affected = dnIds.stream()
+                    .map(dn -> {
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("dnId", dn);
+                        return m;
+                    })
+                    .collect(Collectors.toList());
 
-            // Set/update timestamps
-            OffsetDateTime startedAt = nowUtc.minusMinutes(5L * j);
-            OffsetDateTime updatedAt = nowUtc;
-            OffsetDateTime etr = nowUtc.plusMinutes(30L + 5L * j);
-            outage.put("startedAt", startedAt.toString());
-            outage.put("updatedAt", updatedAt.toString());
-            outage.put("etr", etr.toString());
-
-            // Generate affectedDeliveryNodes: one dnId == one customer
-            Map<String, Object> nodeTemplate = affectedTemplate.isEmpty()
-                    ? Map.of("dnId", "0")
-                    : affectedTemplate.get(0);
-
-            List<Map<String, Object>> nodes = new ArrayList<>(nodesThisFile);
-            int dnStart = (t * 100000) + (j * 1000); // unique-ish per file/outage
-            for (int i = 1; i <= nodesThisFile; i++) {
-                Map<String, Object> n = mapper.readValue(mapper.writeValueAsBytes(nodeTemplate), Map.class);
-                n.put("dnId", String.valueOf(dnStart + i)); // numeric string
-                nodes.add(n);
-            }
-            outage.put("affectedDeliveryNodes", nodes);
-
-            newOutages.add(outage);
+            outageObj.put("affectedDeliveryNodes", affected);
+            outages.add(outageObj);
         }
 
-        // Replace outages array and remove any extra top-level fields
-        root.put("outages", newOutages);
+        root.remove("outage");
+        root.remove("deliveryNodes");
+        root.remove("_meta");
 
         return root;
+    }
+
+    private List<String> loadDnPool() {
+        String path = Objects.requireNonNull(sampleProps.getDeliveryNodeListPath(),
+                "sample.deliveryNodeListPath is required (file with delivery node IDs)");
+        try {
+            Path p = Paths.get(path);
+            String content = Files.readString(p).trim();
+
+            if (content.startsWith("[") && content.endsWith("]")) {
+                var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                return mapper.readValue(content, mapper.getTypeFactory()
+                        .constructCollectionType(List.class, String.class));
+            }
+
+            return Files.readAllLines(p).stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty() && !s.startsWith("#"))
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load delivery node pool from " + path, e);
+        }
+    }
+
+    private List<String> ensureDnPool() {
+        if (dnPool == null) {
+            synchronized (dnLock) {
+                if (dnPool == null) {
+                    dnPool = loadDnPool();
+                    if (dnPool.isEmpty()) {
+                    throw new IllegalStateException("Delivery node pool is empty: " + sampleProps.getDeliveryNodeListPath());
+                    }
+                }
+            }
+        }
+        return dnPool;
+    }
+
+    private List<String> takeDnIds(int count) {
+        List<String> pool = ensureDnPool();
+        List<String> out = new ArrayList<>(count);
+        synchronized (dnLock) {
+            for (int i = 0; i < count; i++) {
+                if (dnCursor >= pool.size()) dnCursor = 0;
+                out.add(pool.get(dnCursor++));
+            }
+        }
+        return out;
     }
 
     private class Sender implements Runnable {
