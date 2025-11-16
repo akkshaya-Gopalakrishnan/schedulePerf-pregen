@@ -183,45 +183,75 @@ public class CampaignService {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String,Object> generateFromSample(Map<String,Object> sample, int t, int N, String outageId) throws Exception {
+    private Map<String, Object> generateFromSample(Map<String, Object> sample, int t, int N, String baseId) throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        Map<String,Object> root = mapper.readValue(mapper.writeValueAsBytes(sample), Map.class);
 
-        Map<String,Object> outage = (Map<String,Object>) root.getOrDefault("outage", new HashMap<>());
-        List<Map<String,Object>> nodes = (List<Map<String,Object>>) root.getOrDefault("deliveryNodes", new ArrayList<>());
+        // Deep copy the whole sample to preserve structure
+        Map<String, Object> root = mapper.readValue(mapper.writeValueAsBytes(sample), Map.class);
 
-        double r = ramp(t, N, schedulerProps.getRamp().getShape(), schedulerProps.getRamp().getA(), schedulerProps.getRamp().getK());
-        double reachCap = schedulerProps.getMaxReachPctByMaxHour();
-        double targetReach = reachCap * r;
+        // Expect "outages" array in the sample
+        List<Map<String, Object>> sampleOutages = (List<Map<String, Object>>) root.get("outages");
+        if (sampleOutages == null || sampleOutages.isEmpty()) {
+            throw new IllegalStateException("Sample must contain 'outages' array with at least one element.");
+        }
+
+        // Template for a single outage
+        Map<String, Object> outageTemplate = sampleOutages.get(0);
+        List<Map<String, Object>> affectedTemplate =
+                (List<Map<String, Object>>) outageTemplate.getOrDefault("affectedDeliveryNodes", new ArrayList<>());
+
+        // Ramp and control
+        double r = ramp(t, N,
+                schedulerProps.getRamp().getShape(),
+                schedulerProps.getRamp().getA(),
+                schedulerProps.getRamp().getK());
 
         int maxOutagesTotal = schedulerProps.getMaxOutagesTotal();
-        int outagesThisFile = Math.max(1, (int)Math.round(maxOutagesTotal * (1.0 / N)));
+        int outagesThisFile = Math.max(1, (int) Math.round(maxOutagesTotal * (1.0 / N)));
+
         int avgNodes = Math.max(1, schedulerProps.getAvgNodesPerFile());
-        int nodesThisFile = Math.max(1, (int)Math.round(avgNodes * (0.5 + r)));
+        int nodesThisFile = Math.max(1, (int) Math.round(avgNodes * (0.5 + r)));
 
-        outage.put("id", outageId);
-        outage.put("generatedAt", OffsetDateTime.now(ZoneOffset.UTC).toString());
-        outage.put("scheduledFor", OffsetDateTime.now(PHOENIX).toString());
-        root.put("outage", outage);
+        OffsetDateTime nowUtc = OffsetDateTime.now(ZoneOffset.UTC);
 
-        Map<String,Object> nodeTemplate = nodes.isEmpty() ? new HashMap<>() : nodes.get(0);
-        List<Map<String,Object>> newNodes = new ArrayList<>();
-        for (int i = 1; i <= nodesThisFile; i++) {
-            Map<String,Object> n = mapper.readValue(mapper.writeValueAsBytes(nodeTemplate), Map.class);
-            n.put("dnId", String.format("dn-%05d", i));
-            int customers = Math.max(1, (int)Math.round(100 * (0.3 + r)));
-            n.put("customersAffected", customers);
-            newNodes.add(n);
+        // Build outages array
+        List<Map<String, Object>> newOutages = new ArrayList<>();
+        for (int j = 1; j <= outagesThisFile; j++) {
+            // Deep copy outage template
+            Map<String, Object> outage = mapper.readValue(mapper.writeValueAsBytes(outageTemplate), Map.class);
+
+            // Unique outage ID
+            String outageId = baseId + "-" + String.format("%02d", j);
+            outage.put("id", outageId);
+
+            // Set/update timestamps
+            OffsetDateTime startedAt = nowUtc.minusMinutes(5L * j);
+            OffsetDateTime updatedAt = nowUtc;
+            OffsetDateTime etr = nowUtc.plusMinutes(30L + 5L * j);
+            outage.put("startedAt", startedAt.toString());
+            outage.put("updatedAt", updatedAt.toString());
+            outage.put("etr", etr.toString());
+
+            // Generate affectedDeliveryNodes: one dnId == one customer
+            Map<String, Object> nodeTemplate = affectedTemplate.isEmpty()
+                    ? Map.of("dnId", "0")
+                    : affectedTemplate.get(0);
+
+            List<Map<String, Object>> nodes = new ArrayList<>(nodesThisFile);
+            int dnStart = (t * 100000) + (j * 1000); // unique-ish per file/outage
+            for (int i = 1; i <= nodesThisFile; i++) {
+                Map<String, Object> n = mapper.readValue(mapper.writeValueAsBytes(nodeTemplate), Map.class);
+                n.put("dnId", String.valueOf(dnStart + i)); // numeric string
+                nodes.add(n);
+            }
+            outage.put("affectedDeliveryNodes", nodes);
+
+            newOutages.add(outage);
         }
-        root.put("deliveryNodes", newNodes);
 
-        root.put("_meta", Map.of(
-                "fileIndex", t,
-                "totalPlanned", N,
-                "targetReach", targetReach,
-                "outagesThisFile", outagesThisFile,
-                "nodesThisFile", nodesThisFile
-        ));
+        // Replace outages array and remove any extra top-level fields
+        root.put("outages", newOutages);
+
         return root;
     }
 

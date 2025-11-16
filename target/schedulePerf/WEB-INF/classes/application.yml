@@ -13,11 +13,11 @@ management:
 
 # --- Your knobs ---
 scheduler:
-  interval: 10m           # send cadence
-  duration: 4h            # total test window
-  maxOutagesTotal: 500
+  interval: 20m           # send cadence
+  duration: 2h            # total test window
+  maxOutagesTotal: 20
   maxReachPctByMaxHour: 0.6
-  avgNodesPerFile: 120
+  avgNodesPerFile: 20
   ramp:
     shape: sigmoid        # linear|exp|sigmoid
     a: 10
