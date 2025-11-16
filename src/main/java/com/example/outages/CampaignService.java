@@ -118,7 +118,6 @@ public class CampaignService {
 
         return status();
     }
-
     public synchronized Status stop() {
         if (future != null) future.cancel(false);
         running = false;

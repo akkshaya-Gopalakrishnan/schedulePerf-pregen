@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8081
 
 spring:
   application:
@@ -25,7 +25,7 @@ scheduler:
 
 # Sample file on the same server (relative or absolute path)
 sample:
-  path: sample/sample.json
+  path: /Users/Agopalakrishnan/Downloads/schedulePerf-war-ec2-pregen-java11/src/main/resources/sample/sample.json
 
 # Folder to PRE-GENERATE all payload files, and from which sender will pick
 output:

@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/campaign")
 public class CampaignController {
@@ -32,5 +34,15 @@ public class CampaignController {
     @PostMapping("/stop")
     public ResponseEntity<CampaignService.Status> stop() {
         return ResponseEntity.ok(service.stop());
+    }
+
+    // ✅ New endpoint for one-shot generation
+    @PostMapping("/generateOnce")
+    public ResponseEntity<Map<String, Object>> generateOnce() {
+        int generated = service.generateAllNow();
+        return ResponseEntity.ok(Map.of(
+                "generated", generated,
+                "outputDir", outputProps.getDir()
+        ));
     }
 }
