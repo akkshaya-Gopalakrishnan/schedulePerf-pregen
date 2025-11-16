@@ -40,3 +40,5 @@ target:
 retry:
   maxAttempts: 5
   backoffSeconds: 1
+send:
+  enabled: false

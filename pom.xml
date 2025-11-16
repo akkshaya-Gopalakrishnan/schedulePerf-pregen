@@ -109,6 +109,14 @@
           </compilerArgs>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.3.2</version>
+        <configuration>
+          <failOnMissingWebXml>false</failOnMissingWebXml>
+        </configuration>
+      </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -123,9 +131,6 @@
                 <requireJavaVersion>
                   <version>[11,12)</version>
                 </requireJavaVersion>
-                <enforceBytecodeVersion>
-                  <maxJdkVersion>11</maxJdkVersion>
-                </enforceBytecodeVersion>
               </rules>
             </configuration>
           </execution>

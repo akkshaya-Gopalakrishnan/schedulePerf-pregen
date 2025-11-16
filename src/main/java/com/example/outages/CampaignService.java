@@ -151,46 +151,6 @@ public class CampaignService {
         return planned;
     }
 
-    public synchronized int generateAllNow() {
-        Objects.requireNonNull(sampleProps.getPath(), "sample.path is required");
-        Objects.requireNonNull(outputProps.getDir(), "output.dir is required");
-
-        Duration duration = parseDuration(schedulerProps.getDuration());
-        Duration period = parseDuration(schedulerProps.getInterval());
-        int planned = computeTotalPlanned(duration, period);
-
-        pregenFiles = preGenerateAll(planned, period);
-        totalPlanned = planned;
-        sent.set(0);
-        running = false;
-        if (future != null) {
-            future.cancel(false);
-            future = null;
-        }
-        log.info("Pre-generated {} campaign payloads into {}", planned, outputProps.getDir());
-        return planned;
-    }
-
-    public synchronized int generateAllNow() {
-        Objects.requireNonNull(sampleProps.getPath(), "sample.path is required");
-        Objects.requireNonNull(outputProps.getDir(), "output.dir is required");
-
-        Duration duration = parseDuration(schedulerProps.getDuration());
-        Duration period = parseDuration(schedulerProps.getInterval());
-        int planned = computeTotalPlanned(duration, period);
-
-        pregenFiles = preGenerateAll(planned, period);
-        totalPlanned = planned;
-        sent.set(0);
-        running = false;
-        if (future != null) {
-            future.cancel(false);
-            future = null;
-        }
-        log.info("Pre-generated {} campaign payloads into {}", planned, outputProps.getDir());
-        return planned;
-    }
-
     private List<Path> preGenerateAll(int N, Duration period) {
         try {
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
