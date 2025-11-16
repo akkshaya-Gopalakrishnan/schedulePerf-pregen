@@ -1,0 +1,107 @@
+{
+  "outages": [
+    {
+      "id": "995808",
+      "crewStatus": "Crew assigned",
+      "crewIconIndicator": false,
+      "cause": "",
+      "comments": "A crew has been assigned to locate and repair the problem reported in your area. We apologize for any inconvenience and will provide updates as more information becomes available.",
+      "etr": "2025-11-15T07:30:00Z",
+      "startedAt": "2025-11-15T02:12:00Z",
+      "metadata":{
+        "caseCode": "702",
+        "deviceType": "TransformerOH",
+        "deviceName": "325885",
+        "deviceClass": "Overhead Transformer",
+        "tcmsComments": " ",
+        "opHeadquarters": "HATTIESBURG",
+        "caseNoteShortDesc": "Assigned",
+        "outageType": "",
+        "workQueue": "",
+        "substation": "HATTIESBURG COUNTY DR SUB",
+        "feeder": "8286",
+        "crewContact": "BEATY ARCHIE",
+        "custOut": "1"
+      },
+      "affectedDeliveryNodes":[
+        {
+          "dnId":"4905416019",
+          "type":"Commercial",
+          "reported":false
+        },
+        {
+          "dnId":"0003950105",
+          "type":"Commercial",
+          "reported":false
+        },
+        {
+          "dnId":"0003967306",
+          "type":"Commercial",
+          "reported":false
+        }
+      ]
+    },
+    {
+      "id": "995809",
+      "crewStatus": "Crew on site",
+      "crewIconIndicator": true,
+      "cause": "",
+      "comments": "A crew is currently on site making repairs to the system. We apologize for any inconvenience and we are working to restore power. We will provide updates as more information becomes available.",
+      "etr": "2025-11-15T07:15:00Z",
+      "startedAt": "2025-11-15T02:15:00Z",
+      "metadata":{
+        "caseCode": "704",
+        "deviceType": "TransformerOH",
+        "deviceName": "145759",
+        "deviceClass": "Overhead Transformer",
+        "tcmsComments": " ",
+        "opHeadquarters": "HATTIESBURG",
+        "caseNoteShortDesc": "On-Site",
+        "outageType": "",
+        "workQueue": "",
+        "substation": "HATTIESBURG 28TH AVE SUB",
+        "feeder": "10796",
+        "crewContact": "BEATY ARCHIE",
+        "custOut": "1"
+      },
+      "affectedDeliveryNodes":[
+        {
+          "dnId":"6762184016",
+          "type":"Commercial",
+          "reported":false
+        }
+      ]
+    },
+    {
+      "id": "995813",
+      "crewStatus": "Evaluating",
+      "crewIconIndicator": false,
+      "cause": "",
+      "comments": "We are aware of your outage and apologize for any inconvenience. We will provide updates as more information becomes available.",
+      "etr": "",
+      "startedAt": "2025-11-15T04:17:00Z",
+      "metadata":{
+        "caseCode": "701",
+        "deviceType": "TransformerOH",
+        "deviceName": "404443",
+        "deviceClass": "Overhead Transformer",
+        "tcmsComments": " ",
+        "opHeadquarters": "BAY ST. LOUIS",
+        "caseNoteShortDesc": "Unassigned",
+        "outageType": "",
+        "workQueue": "",
+        "substation": "BAY ST LOUIS TURNER ST SUB",
+        "feeder": "17966",
+        "crewContact": "",
+        "custOut": "1"
+      },
+      "affectedDeliveryNodes":[
+        {
+          "dnId":"7587149001",
+          "type":"Residential",
+          "reported":true
+        }
+      ]
+    }
+  ]
+}

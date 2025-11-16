@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "sample")
 public class SampleProperties {
     // Path to the sample.json relative or absolute on the same server
-    private String path = "sample/sample.json";
+    private String path = "sample/DeliveryNodeSample.json";
     private String deliveryNodeListPath;
 
     public String getPath() { return path; }

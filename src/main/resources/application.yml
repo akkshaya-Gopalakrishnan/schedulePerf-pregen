@@ -25,8 +25,8 @@ scheduler:
 
 # Sample file on the same server (relative or absolute path)
 sample:
-  path: /Users/Agopalakrishnan/Downloads/schedulePerf-war-ec2-pregen-java11/src/main/resources/sample/sample.json
-  deliveryNodeListPath: /Users/Agopalakrishnan/Downloads/schedulePerf-war-ec2-pregen-java11/src/main/resources/sample/dn_ids.txt
+  path: /Users/Agopalakrishnan/Downloads/schedulePerf-war-ec2-pregen-java11/src/main/resources/sample/OutageSample.json
+  deliveryNodeListPath: /Users/Agopalakrishnan/Downloads/schedulePerf-war-ec2-pregen-java11/src/main/resources/sample/DeliveryNodesSample.json
 
 # Folder to PRE-GENERATE all payload files, and from which sender will pick
 output:

@@ -1,6 +1,8 @@
 package com.example.outages;
 
 import com.example.outages.config.*;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.TaskScheduler;
@@ -17,6 +19,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class CampaignService {
@@ -229,37 +233,64 @@ public class CampaignService {
             outageObj.put("affectedDeliveryNodes", affected);
             outages.add(outageObj);
         }
-
-        root.remove("outage");
-        root.remove("deliveryNodes");
-        root.remove("_meta");
-
         return root;
     }
 
-    private List<String> loadDnPool() {
-        String path = Objects.requireNonNull(sampleProps.getDeliveryNodeListPath(),
-                "sample.deliveryNodeListPath is required (file with delivery node IDs)");
-        try {
-            Path p = Paths.get(path);
-            String content = Files.readString(p).trim();
+    // imports you may need:
 
-            if (content.startsWith("[") && content.endsWith("]")) {
-                var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                return mapper.readValue(content, mapper.getTypeFactory()
-                        .constructCollectionType(List.class, String.class));
+
+    private List<String> loadDnPool() throws IOException {
+        Path path = Paths.get(
+                Objects.requireNonNull(
+                        sampleProps.getDeliveryNodeListPath(),
+                        "sample.deliveryNodeListPath is required"
+                )
+        );
+
+        String json = Files.readString(path);
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(json);
+
+        List<String> ids = new ArrayList<>();
+
+        if (root.isArray()) {
+            // Accept ["id", ...] or [{ "id": "..." }, ...]
+            for (JsonNode n : root) {
+                if (n.isTextual()) {
+                    ids.add(n.asText());
+                } else if (n.isObject() && n.hasNonNull("id")) {
+                    ids.add(n.get("id").asText());
+                }
             }
-
-            return Files.readAllLines(p).stream()
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty() && !s.startsWith("#"))
-                    .collect(Collectors.toList());
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to load delivery node pool from " + path, e);
+        } else if (root.isObject()) {
+            // Accept { "nodes": [ { "id": "..." }, ... ] }
+            JsonNode nodes = root.get("nodes");
+            if (nodes == null || !nodes.isArray()) {
+                throw new IllegalArgumentException("Expected field 'nodes' to be an array in " + path);
+            }
+            for (JsonNode n : nodes) {
+                if (n.hasNonNull("id")) {
+                    ids.add(n.get("id").asText());
+                }
+            }
+        } else {
+            throw new IllegalArgumentException("Expected JSON array or an object with 'nodes' array in " + path);
         }
+
+        // Clean up: trim, drop empties, de-duplicate while preserving order
+        List<String> unique = ids.stream()
+                .map(s -> s == null ? "" : s.trim())
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+
+        if (unique.isEmpty()) {
+            throw new IllegalArgumentException("No delivery node IDs found in " + path);
+        }
+        return unique;
     }
 
-    private List<String> ensureDnPool() {
+    private List<String> ensureDnPool() throws IOException {
         if (dnPool == null) {
             synchronized (dnLock) {
                 if (dnPool == null) {
@@ -273,7 +304,7 @@ public class CampaignService {
         return dnPool;
     }
 
-    private List<String> takeDnIds(int count) {
+    private List<String> takeDnIds(int count) throws IOException {
         List<String> pool = ensureDnPool();
         List<String> out = new ArrayList<>(count);
         synchronized (dnLock) {
