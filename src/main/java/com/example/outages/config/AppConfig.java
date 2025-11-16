@@ -1,15 +1,16 @@
 package com.example.outages.config;
-import com.example.outages.config.*;
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ClientHttpConnector;
-import org.springframework.http.client.reactive.HttpComponentsClientHttpConnector;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
-//import org.springframework.http.client.reactive.JdkClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
-import java.net.http.HttpClient;
+
+// ✅ Use ONLY the Netty HttpClient
+import reactor.netty.http.client.HttpClient;
 
 @Configuration
 @EnableConfigurationProperties({
@@ -31,20 +32,19 @@ public class AppConfig {
     }
 
     @Bean
-    public ClientHttpConnector httpConnector() {
-        return new HttpComponentsClientHttpConnector();
+    public ClientHttpConnector clientHttpConnector() {
+        return new ReactorClientHttpConnector(reactor.netty.http.client.HttpClient.create());
     }
 
-//    @Bean
-//    public WebClient webClient(ClientHttpConnector connector) {
-//        ExchangeStrategies strategies = ExchangeStrategies.builder()
-//                .codecs(c -> c.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
-//                .build();
-//
-//        // ✅ lightweight JDK 11 HTTP client
-//        return WebClient.builder()
-//                .clientConnector(new JdkClientHttpConnector(HttpClient.newBuilder().build()))
-//                .exchangeStrategies(strategies)
-//                .build();
-//    }
+    @Bean
+    public WebClient webClient(ClientHttpConnector connector) {
+        ExchangeStrategies strategies = ExchangeStrategies.builder()
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+                .build();
+
+        return WebClient.builder()
+                .clientConnector(connector)
+                .exchangeStrategies(strategies)
+                .build();
+    }
 }

@@ -19,6 +19,8 @@
           <element id="library" level="project" name="Maven: org.springframework.boot:spring-boot:2.7.18" />
           <element id="library" level="project" name="Maven: org.springframework.boot:spring-boot-autoconfigure:2.7.18" />
           <element id="library" level="project" name="Maven: org.springframework.boot:spring-boot-starter-logging:2.7.18" />
+          <element id="library" level="project" name="Maven: ch.qos.logback:logback-classic:1.2.12" />
+          <element id="library" level="project" name="Maven: ch.qos.logback:logback-core:1.2.12" />
           <element id="library" level="project" name="Maven: org.apache.logging.log4j:log4j-to-slf4j:2.17.2" />
           <element id="library" level="project" name="Maven: org.apache.logging.log4j:log4j-api:2.17.2" />
           <element id="library" level="project" name="Maven: org.slf4j:jul-to-slf4j:1.7.36" />
@@ -51,12 +53,44 @@
           <element id="library" level="project" name="Maven: org.springframework:spring-jcl:5.3.31" />
           <element id="library" level="project" name="Maven: io.projectreactor:reactor-core:3.4.34" />
           <element id="library" level="project" name="Maven: org.reactivestreams:reactive-streams:1.0.4" />
+          <element id="library" level="project" name="Maven: io.projectreactor.netty:reactor-netty:1.0.39" />
+          <element id="library" level="project" name="Maven: io.projectreactor.netty:reactor-netty-core:1.0.39" />
+          <element id="library" level="project" name="Maven: io.netty:netty-handler:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-common:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-resolver:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-buffer:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-transport:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-transport-native-unix-common:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-codec:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-handler-proxy:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-codec-socks:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-resolver-dns:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-codec-dns:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-resolver-dns-native-macos:osx-x86_64:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-resolver-dns-classes-macos:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-transport-native-epoll:linux-x86_64:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-transport-classes-epoll:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.projectreactor.netty:reactor-netty-http:1.0.39" />
+          <element id="library" level="project" name="Maven: io.netty:netty-codec-http:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.netty:netty-codec-http2:4.1.101.Final" />
+          <element id="library" level="project" name="Maven: io.projectreactor.netty.incubator:reactor-netty-incubator-quic:0.0.28" />
+          <element id="library" level="project" name="Maven: io.netty.incubator:netty-incubator-codec-native-quic:linux-x86_64:0.0.52.Final" />
+          <element id="library" level="project" name="Maven: io.netty.incubator:netty-incubator-codec-classes-quic:0.0.52.Final" />
+          <element id="library" level="project" name="Maven: io.projectreactor.netty:reactor-netty-http-brave:1.0.39" />
+          <element id="library" level="project" name="Maven: io.zipkin.brave:brave-instrumentation-http:5.16.0" />
+          <element id="library" level="project" name="Maven: io.zipkin.brave:brave:5.16.0" />
+          <element id="library" level="project" name="Maven: io.zipkin.reporter2:zipkin-reporter-brave:2.16.3" />
+          <element id="library" level="project" name="Maven: io.zipkin.reporter2:zipkin-reporter:2.16.3" />
+          <element id="library" level="project" name="Maven: io.zipkin.zipkin2:zipkin:2.23.2" />
+          <element id="library" level="project" name="Maven: org.apache.httpcomponents:httpasyncclient:4.1.5" />
+          <element id="library" level="project" name="Maven: org.apache.httpcomponents:httpcore:4.4.16" />
+          <element id="library" level="project" name="Maven: org.apache.httpcomponents:httpcore-nio:4.4.16" />
+          <element id="library" level="project" name="Maven: org.apache.httpcomponents:httpclient:4.5.14" />
+          <element id="library" level="project" name="Maven: commons-codec:commons-codec:1.15" />
           <element id="library" level="project" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.13.5" />
           <element id="library" level="project" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.13.5" />
           <element id="library" level="project" name="Maven: com.fasterxml.jackson.core:jackson-core:2.13.5" />
           <element id="library" level="project" name="Maven: org.slf4j:slf4j-api:1.7.36" />
-          <element id="library" level="project" name="Maven: ch.qos.logback:logback-classic:1.2.12" />
-          <element id="library" level="project" name="Maven: ch.qos.logback:logback-core:1.2.12" />
         </element>
       </element>
       <element id="directory" name="META-INF">

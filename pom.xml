@@ -58,6 +58,10 @@
       <groupId>org.springframework</groupId>
       <artifactId>spring-webflux</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.projectreactor.netty</groupId>
+      <artifactId>reactor-netty</artifactId>
+    </dependency>
 
     <!-- JSON (pulled by web starter already, but keeping explicit is fine) -->
     <dependency>
